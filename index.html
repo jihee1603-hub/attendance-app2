@@ -18,40 +18,37 @@ button { padding:10px; border:none; border-radius:8px; margin:3px;}
   gap:5px;
 }
 
-.day {
-  background:white;
-  padding:8px;
-  text-align:center;
-  border-radius:8px;
-  min-height:60px;
-}
-
-.checked {
-  background:#e8f5e9;
-}
-
-.header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
+/* 요일 */
 .week {
+  text-align:center;
   font-weight:bold;
 }
-
 .sun { color:red; }
 .sat { color:blue; }
 
-.dot {
-  width:6px;
-  height:6px;
-  border-radius:50%;
-  margin:3px auto 0;
+/* 날짜칸 */
+.day {
+  background:white;
+  border-radius:8px;
+  aspect-ratio:1/1; /* 정사각형 */
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  padding:5px;
+  font-size:14px;
 }
 
-.note {
-  font-size:10px;
+/* 날짜 숫자 */
+.day-number {
+  font-weight:bold;
+}
+
+/* 가로 막대 */
+.bar {
+  width:90%;
+  height:6px;
+  border-radius:4px;
   margin-top:2px;
 }
 </style>
@@ -60,24 +57,26 @@ button { padding:10px; border:none; border-radius:8px; margin:3px;}
 <body>
 
 <div class="card">
-  <select id="academySelect" onchange="selectAcademy()"></select>
-  <button class="danger" onclick="deleteAcademy()">삭제</button>
-</div>
-
-<div class="card">
   <input id="name" placeholder="학원 이름">
   <input id="count" type="number" placeholder="총 횟수">
   <input type="color" id="color">
+
+  <div>
+    요일 선택:
+    <label><input type="checkbox" value="0">일</label>
+    <label><input type="checkbox" value="1">월</label>
+    <label><input type="checkbox" value="2">화</label>
+    <label><input type="checkbox" value="3">수</label>
+    <label><input type="checkbox" value="4">목</label>
+    <label><input type="checkbox" value="5">금</label>
+    <label><input type="checkbox" value="6">토</label>
+  </div>
+
   <button class="primary" onclick="addAcademy()">추가</button>
 </div>
 
 <div class="card">
-  <h3 id="title"></h3>
-  <p id="remaining"></p>
-</div>
-
-<div class="card">
-  <div class="header">
+  <div style="display:flex;justify-content:space-between;">
     <button onclick="prevMonth()">◀</button>
     <h3 id="monthTitle"></h3>
     <button onclick="nextMonth()">▶</button>
@@ -87,69 +86,38 @@ button { padding:10px; border:none; border-radius:8px; margin:3px;}
 
 <script>
 let data = JSON.parse(localStorage.getItem("data")) || { academies: [] };
-let current = 0;
 let currentDate = new Date();
 
 function save() {
   localStorage.setItem("data", JSON.stringify(data));
 }
 
+/* 학원 추가 */
 function addAcademy() {
   const name = document.getElementById("name").value;
   const count = parseInt(document.getElementById("count").value);
-  const color = document.getElementById("color").value || "#ff0000";
+  const color = document.getElementById("color").value;
 
-  if (!name || !count) return;
+  const days = [];
+  document.querySelectorAll("input[type=checkbox]:checked").forEach(c=>{
+    days.push(parseInt(c.value));
+  });
+
+  if (!name || !count || days.length === 0) return;
 
   data.academies.push({
     name,
     total: count,
     color,
-    attendance: [],
-    notes: {}
+    days,
+    attendance: []
   });
 
   save();
-  renderList();
-}
-
-function deleteAcademy() {
-  data.academies.splice(current,1);
-  current = 0;
-  save();
-  renderList();
-}
-
-function selectAcademy() {
-  current = document.getElementById("academySelect").selectedIndex;
   render();
 }
 
-function renderList() {
-  const select = document.getElementById("academySelect");
-  select.innerHTML = "";
-
-  data.academies.forEach(a=>{
-    const o=document.createElement("option");
-    o.text=a.name;
-    select.add(o);
-  });
-
-  render();
-}
-
-function render() {
-  if (!data.academies.length) return;
-
-  const a = data.academies[current];
-
-  document.getElementById("title").innerText = a.name;
-  document.getElementById("remaining").innerText =
-    "남은 횟수: " + (a.total - a.attendance.length);
-
-  renderCalendar();
-}
-
+/* 달력 렌더 */
 function renderCalendar() {
   const cal = document.getElementById("calendar");
   cal.innerHTML = "";
@@ -162,11 +130,11 @@ function renderCalendar() {
 
   const daysOfWeek = ["일","월","화","수","목","금","토"];
 
-  // 요일 표시
+  // 요일 헤더
   daysOfWeek.forEach((d,i)=>{
     const div = document.createElement("div");
-    div.className = "week";
-    div.innerText = d;
+    div.className="week";
+    div.innerText=d;
 
     if(i===0) div.classList.add("sun");
     if(i===6) div.classList.add("sat");
@@ -177,51 +145,49 @@ function renderCalendar() {
   const firstDay = new Date(y,m,1).getDay();
   const days = new Date(y,m+1,0).getDate();
 
-  // 빈칸
   for(let i=0;i<firstDay;i++){
     cal.appendChild(document.createElement("div"));
   }
 
-  const a = data.academies[current];
+  for(let i=1;i<=days;i++){
+    const date = new Date(y,m,i);
+    const day = date.getDay();
 
-  for (let i=1;i<=days;i++){
-    const date = `${y}-${m+1}-${i}`;
     const div = document.createElement("div");
     div.className="day";
 
-    const dayNum = document.createElement("div");
-    dayNum.innerText = i;
-    div.appendChild(dayNum);
+    const num = document.createElement("div");
+    num.className="day-number";
+    num.innerText=i;
 
-    if(a.attendance.includes(date)){
-      div.classList.add("checked");
+    if(day===0) num.style.color="red";
+    if(day===6) num.style.color="blue";
 
-      const dot = document.createElement("div");
-      dot.className="dot";
-      dot.style.background = a.color;
-      div.appendChild(dot);
-    }
+    div.appendChild(num);
 
-    if(a.notes && a.notes[date]){
-      const note = document.createElement("div");
-      note.className="note";
-      note.innerText = a.notes[date];
-      div.appendChild(note);
-    }
+    // 해당 요일 학원 필터
+    const todays = data.academies.filter(a => a.days.includes(day));
 
+    // 최대 5개만 표시
+    todays.slice(0,5).forEach(a=>{
+      const bar = document.createElement("div");
+      bar.className="bar";
+      bar.style.background = a.color;
+      div.appendChild(bar);
+    });
+
+    // 클릭 → 출석 체크
     div.onclick=()=>{
-      const existingNote = a.notes[date] || "";
-      const note = prompt("비고 입력:", existingNote);
+      todays.forEach(a=>{
+        const dateStr = `${y}-${m+1}-${i}`;
+        const idx = a.attendance.indexOf(dateStr);
 
-      const idx = a.attendance.indexOf(date);
-
-      if(idx>-1){
-        a.attendance.splice(idx,1);
-        delete a.notes[date];
-      } else {
-        a.attendance.push(date);
-        if(note) a.notes[date]=note;
-      }
+        if(idx>-1) {
+          a.attendance.splice(idx,1);
+        } else {
+          a.attendance.push(dateStr);
+        }
+      });
 
       save();
       render();
@@ -241,7 +207,11 @@ function nextMonth(){
   render();
 }
 
-renderList();
+function render(){
+  renderCalendar();
+}
+
+render();
 </script>
 
 </body>
