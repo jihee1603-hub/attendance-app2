@@ -2,154 +2,116 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>학원 출석 관리 앱</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>출석 관리 프로그램</title>
+
 <style>
-body { font-family: sans-serif; padding:20px; }
-.header { display:flex; justify-content:space-between; align-items:center; }
-.calendar { display:grid; grid-template-columns: repeat(7,1fr); gap:5px; margin-top:10px; }
-.day {
-  border:1px solid #ccc;
-  height:100px;
-  padding:5px;
-  position:relative;
-  cursor:pointer;
-}
-.day.checked { background:#e8f5e9; }
-.bars { position:absolute; bottom:5px; left:5px; right:5px; }
-.bar { height:6px; margin-top:2px; border-radius:3px; }
-.controls { margin-top:20px; }
-input, select, button { margin:3px; }
-.academy-item { margin-top:5px; }
+body { font-family: Arial; background:#f5f6fa; margin:0; padding:20px;}
+.container { display:flex; gap:20px; }
+.card { background:white; padding:15px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+.left { width:30%; }
+.right { width:70%; }
+button { padding:8px 12px; border:none; border-radius:5px; cursor:pointer; }
+.add { background:#2ecc71; color:white; }
+.delete { background:#e74c3c; color:white; }
+.present { color:green; }
+.absent { color:red; }
+table { width:100%; border-collapse:collapse; }
+td, th { padding:8px; border-bottom:1px solid #ddd; text-align:center; }
+input { padding:8px; width:70%; }
 </style>
 </head>
+
 <body>
 
-<div class="header">
-  <button onclick="changeMonth(-1)">◀</button>
-  <h2 id="monthTitle"></h2>
-  <button onclick="changeMonth(1)">▶</button>
+<h2>📅 출석 관리 프로그램</h2>
+
+<div class="container">
+
+<!-- 왼쪽 -->
+<div class="card left">
+<h3>학생 관리</h3>
+<input id="nameInput" placeholder="이름 입력">
+<button class="add" onclick="addStudent()">추가</button>
+
+<ul id="studentList"></ul>
 </div>
 
-<div class="calendar" id="calendar"></div>
+<!-- 오른쪽 -->
+<div class="card right">
+<h3>출석 현황</h3>
 
-<div class="controls">
-  <h3>학원 관리</h3>
-  <input id="name" placeholder="학원명">
-  <input type="color" id="color">
-  <input id="days" placeholder="요일 (0~6, 예: 1,3,5)">
-  <button onclick="addAcademy()">추가</button>
+<table>
+<thead>
+<tr>
+<th>이름</th>
+<th>상태</th>
+<th>출석</th>
+<th>결석</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
 
-  <div id="academyList"></div>
+</div>
 </div>
 
 <script>
-let currentDate = new Date();
-let academyData = JSON.parse(localStorage.getItem("academyData")) || [];
-let attendance = JSON.parse(localStorage.getItem("attendance")) || {};
+let students = JSON.parse(localStorage.getItem("students")) || [];
 
 function save() {
-  localStorage.setItem("academyData", JSON.stringify(academyData));
-  localStorage.setItem("attendance", JSON.stringify(attendance));
+  localStorage.setItem("students", JSON.stringify(students));
 }
 
-function renderCalendar() {
-  const calendar = document.getElementById("calendar");
-  const title = document.getElementById("monthTitle");
+function render() {
+  const list = document.getElementById("studentList");
+  const table = document.getElementById("tableBody");
 
-  calendar.innerHTML = "";
-
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-
-  title.innerText = `${year}년 ${month+1}월`;
-
-  const firstDay = new Date(year, month, 1).getDay();
-  const lastDate = new Date(year, month+1, 0).getDate();
-
-  for(let i=0;i<firstDay;i++){
-    calendar.appendChild(document.createElement("div"));
-  }
-
-  for(let i=1;i<=lastDate;i++){
-    const dateKey = `${year}-${month}-${i}`;
-
-    const dayDiv = document.createElement("div");
-    dayDiv.className = "day";
-    if(attendance[dateKey]) dayDiv.classList.add("checked");
-
-    dayDiv.innerHTML = `<strong>${i}</strong>`;
-
-    dayDiv.onclick = () => {
-      attendance[dateKey] = !attendance[dateKey];
-      save();
-      renderCalendar();
-    };
-
-    const bars = document.createElement("div");
-    bars.className = "bars";
-
-    const dayOfWeek = new Date(year, month, i).getDay();
-
-    academyData.forEach(ac => {
-      if(ac.days.includes(dayOfWeek)){
-        const bar = document.createElement("div");
-        bar.className = "bar";
-        bar.style.background = ac.color;
-        bars.appendChild(bar);
-      }
-    });
-
-    dayDiv.appendChild(bars);
-    calendar.appendChild(dayDiv);
-  }
-}
-
-function renderAcademyList(){
-  const list = document.getElementById("academyList");
   list.innerHTML = "";
+  table.innerHTML = "";
 
-  academyData.forEach((ac, idx)=>{
-    const div = document.createElement("div");
-    div.className = "academy-item";
+  students.forEach((s, i) => {
+    // 왼쪽 리스트
+    const li = document.createElement("li");
+    li.innerHTML = s.name + 
+      ` <button onclick="removeStudent(${i})">삭제</button>`;
+    list.appendChild(li);
 
-    div.innerHTML = `
-      <span style="color:${ac.color}">■</span>
-      ${ac.name} (${ac.days.join(",")})
-      <button onclick="deleteAcademy(${idx})">삭제</button>
+    // 테이블
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${s.name}</td>
+      <td class="${s.status === '출석' ? 'present' : 'absent'}">${s.status || '-'}</td>
+      <td><button onclick="mark(${i}, '출석')">출석</button></td>
+      <td><button onclick="mark(${i}, '결석')">결석</button></td>
     `;
-
-    list.appendChild(div);
+    table.appendChild(tr);
   });
 }
 
-function addAcademy(){
-  const name = document.getElementById("name").value;
-  const color = document.getElementById("color").value;
-  const days = document.getElementById("days").value.split(",").map(Number);
+function addStudent() {
+  const input = document.getElementById("nameInput");
+  if (!input.value) return;
 
-  if(!name) return alert("학원명 입력");
-
-  academyData.push({ name, color, days });
+  students.push({ name: input.value, status: "" });
+  input.value = "";
   save();
-  renderCalendar();
-  renderAcademyList();
+  render();
 }
 
-function deleteAcademy(index){
-  academyData.splice(index,1);
+function removeStudent(i) {
+  students.splice(i, 1);
   save();
-  renderCalendar();
-  renderAcademyList();
+  render();
 }
 
-function changeMonth(diff){
-  currentDate.setMonth(currentDate.getMonth() + diff);
-  renderCalendar();
+function mark(i, status) {
+  students[i].status = status;
+  save();
+  render();
 }
 
-// 초기 실행
-renderCalendar();
-renderAcademyList();
+render();
 </script>
 
 </body>
