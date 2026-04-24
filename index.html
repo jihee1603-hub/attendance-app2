@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>학원 출석 관리 앱</title>
+<style>
+body { font-family: sans-serif; padding:20px; }
+.header { display:flex; justify-content:space-between; align-items:center; }
+.calendar { display:grid; grid-template-columns: repeat(7,1fr); gap:5px; margin-top:10px; }
+.day {
+  border:1px solid #ccc;
+  height:100px;
+  padding:5px;
+  position:relative;
+  cursor:pointer;
+}
+.day.checked { background:#e8f5e9; }
+.bars { position:absolute; bottom:5px; left:5px; right:5px; }
+.bar { height:6px; margin-top:2px; border-radius:3px; }
+.controls { margin-top:20px; }
+input, select, button { margin:3px; }
+.academy-item { margin-top:5px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <button onclick="changeMonth(-1)">◀</button>
+  <h2 id="monthTitle"></h2>
+  <button onclick="changeMonth(1)">▶</button>
+</div>
+
+<div class="calendar" id="calendar"></div>
+
+<div class="controls">
+  <h3>학원 관리</h3>
+  <input id="name" placeholder="학원명">
+  <input type="color" id="color">
+  <input id="days" placeholder="요일 (0~6, 예: 1,3,5)">
+  <button onclick="addAcademy()">추가</button>
+
+  <div id="academyList"></div>
+</div>
+
+<script>
+let currentDate = new Date();
+let academyData = JSON.parse(localStorage.getItem("academyData")) || [];
+let attendance = JSON.parse(localStorage.getItem("attendance")) || {};
+
+function save() {
+  localStorage.setItem("academyData", JSON.stringify(academyData));
+  localStorage.setItem("attendance", JSON.stringify(attendance));
+}
+
+function renderCalendar() {
+  const calendar = document.getElementById("calendar");
+  const title = document.getElementById("monthTitle");
+
+  calendar.innerHTML = "";
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+
+  title.innerText = `${year}년 ${month+1}월`;
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month+1, 0).getDate();
+
+  for(let i=0;i<firstDay;i++){
+    calendar.appendChild(document.createElement("div"));
+  }
+
+  for(let i=1;i<=lastDate;i++){
+    const dateKey = `${year}-${month}-${i}`;
+
+    const dayDiv = document.createElement("div");
+    dayDiv.className = "day";
+    if(attendance[dateKey]) dayDiv.classList.add("checked");
+
+    dayDiv.innerHTML = `<strong>${i}</strong>`;
+
+    dayDiv.onclick = () => {
+      attendance[dateKey] = !attendance[dateKey];
+      save();
+      renderCalendar();
+    };
+
+    const bars = document.createElement("div");
+    bars.className = "bars";
+
+    const dayOfWeek = new Date(year, month, i).getDay();
+
+    academyData.forEach(ac => {
+      if(ac.days.includes(dayOfWeek)){
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        bar.style.background = ac.color;
+        bars.appendChild(bar);
+      }
+    });
+
+    dayDiv.appendChild(bars);
+    calendar.appendChild(dayDiv);
+  }
+}
+
+function renderAcademyList(){
+  const list = document.getElementById("academyList");
+  list.innerHTML = "";
+
+  academyData.forEach((ac, idx)=>{
+    const div = document.createElement("div");
+    div.className = "academy-item";
+
+    div.innerHTML = `
+      <span style="color:${ac.color}">■</span>
+      ${ac.name} (${ac.days.join(",")})
+      <button onclick="deleteAcademy(${idx})">삭제</button>
+    `;
+
+    list.appendChild(div);
+  });
+}
+
+function addAcademy(){
+  const name = document.getElementById("name").value;
+  const color = document.getElementById("color").value;
+  const days = document.getElementById("days").value.split(",").map(Number);
+
+  if(!name) return alert("학원명 입력");
+
+  academyData.push({ name, color, days });
+  save();
+  renderCalendar();
+  renderAcademyList();
+}
+
+function deleteAcademy(index){
+  academyData.splice(index,1);
+  save();
+  renderCalendar();
+  renderAcademyList();
+}
+
+function changeMonth(diff){
+  currentDate.setMonth(currentDate.getMonth() + diff);
+  renderCalendar();
+}
+
+// 초기 실행
+renderCalendar();
+renderAcademyList();
+</script>
+
+</body>
+</html>
