@@ -7,32 +7,92 @@
 <style>
   body { font-family: Arial; padding: 20px; }
   .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-  .day { border: 1px solid #ccc; padding: 10px; min-height: 80px; }
-  .academy { display: block; }
+  .day { border: 1px solid #ccc; padding: 10px; min-height: 100px; }
+  .academy { display: block; font-size: 13px; }
+  .controls { margin-bottom: 20px; }
+  .academy-list { margin-top: 10px; }
+  button { margin-left: 5px; }
 </style>
 </head>
 <body>
 
 <h2>출석 달력</h2>
+
+<div class="controls">
+  <input type="text" id="academyInput" placeholder="학원 이름 입력">
+  <button onclick="addAcademy()">추가</button>
+  <div id="academyList" class="academy-list"></div>
+</div>
+
 <div id="calendar" class="calendar"></div>
 
 <script>
 const STORAGE_KEY = "academyData";
+const ACADEMY_KEY = "academyList";
 
 let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+let academies = JSON.parse(localStorage.getItem(ACADEMY_KEY)) || ["수학","영어","과학"];
 
 function saveData() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function saveAcademies() {
+  localStorage.setItem(ACADEMY_KEY, JSON.stringify(academies));
+}
+
+function addAcademy() {
+  const input = document.getElementById("academyInput");
+  const name = input.value.trim();
+  if (!name || academies.includes(name)) return;
+
+  academies.push(name);
+  saveAcademies();
+  input.value = "";
+  render();
+}
+
+function removeAcademy(name) {
+  academies = academies.filter(a => a !== name);
+
+  // 기존 데이터에서도 삭제
+  Object.keys(data).forEach(date => {
+    if (data[date][name] !== undefined) {
+      delete data[date][name];
+    }
+  });
+
+  saveAcademies();
+  saveData();
+  render();
 }
 
 function toggleAttendance(date, academy) {
   if (!data[date]) data[date] = {};
   data[date][academy] = !data[date][academy];
   saveData();
-  render();
+}
+
+function renderAcademyList() {
+  const listDiv = document.getElementById("academyList");
+  listDiv.innerHTML = "";
+
+  academies.forEach(name => {
+    const div = document.createElement("div");
+    div.textContent = name;
+
+    const btn = document.createElement("button");
+    btn.textContent = "삭제";
+    btn.onclick = () => removeAcademy(name);
+
+    div.appendChild(btn);
+    listDiv.appendChild(div);
+  });
 }
 
 function render() {
+  renderAcademyList();
+
   const calendar = document.getElementById("calendar");
   calendar.innerHTML = "";
 
@@ -43,7 +103,7 @@ function render() {
     dayDiv.className = "day";
     dayDiv.innerHTML = `<strong>${i}</strong><br>`;
 
-    ["수학", "영어", "과학"].forEach(academy => {
+    academies.forEach(academy => {
       const checked = data[date]?.[academy] || false;
 
       const label = document.createElement("label");
@@ -52,7 +112,9 @@ function render() {
       const checkbox = document.createElement("input");
       checkbox.type = "checkbox";
       checkbox.checked = checked;
-      checkbox.onchange = () => toggleAttendance(date, academy);
+      checkbox.onchange = () => {
+        toggleAttendance(date, academy);
+      };
 
       label.appendChild(checkbox);
       label.append(` ${academy}`);
