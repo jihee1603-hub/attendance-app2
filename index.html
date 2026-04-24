@@ -108,4 +108,102 @@ const ACADEMY_KEY = "academyList";
 let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 let academies = JSON.parse(localStorage.getItem(ACADEMY_KEY)) || ["수학","영어","과학"];
 
-const colors = ["#ff7675","#74b9ff","#55efc4","#ffeaa7","#a29bfe","#fd
+const colors = ["#ff7675","#74b9ff","#55efc4","#ffeaa7","#a29bfe","#fd79a8"];
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function saveAcademies() {
+  localStorage.setItem(ACADEMY_KEY, JSON.stringify(academies));
+}
+
+function addAcademy() {
+  const input = document.getElementById("academyInput");
+  const name = input.value.trim();
+  if (!name || academies.includes(name)) return;
+
+  academies.push(name);
+  saveAcademies();
+  input.value = "";
+  render();
+}
+
+function removeAcademy(name) {
+  academies = academies.filter(a => a !== name);
+
+  Object.keys(data).forEach(date => {
+    delete data[date]?.[name];
+  });
+
+  saveAcademies();
+  saveData();
+  render();
+}
+
+function toggleAttendance(date, academy) {
+  if (!data[date]) data[date] = {};
+  data[date][academy] = !data[date][academy];
+  saveData();
+  render();
+}
+
+function renderAcademyList() {
+  const list = document.getElementById("academyList");
+  list.innerHTML = "";
+
+  academies.forEach((name, i) => {
+    const div = document.createElement("div");
+    div.className = "academy-item";
+    div.style.borderLeft = `5px solid ${colors[i % colors.length]}`;
+
+    div.textContent = name;
+
+    const btn = document.createElement("button");
+    btn.textContent = "x";
+    btn.onclick = () => removeAcademy(name);
+
+    div.appendChild(btn);
+    list.appendChild(div);
+  });
+}
+
+function render() {
+  renderAcademyList();
+
+  const calendar = document.getElementById("calendar");
+  calendar.innerHTML = "";
+
+  for (let i = 1; i <= 30; i++) {
+    const date = `2026-04-${String(i).padStart(2, '0')}`;
+
+    const dayDiv = document.createElement("div");
+    dayDiv.className = "day";
+
+    const dateDiv = document.createElement("div");
+    dateDiv.className = "date";
+    dateDiv.textContent = i;
+
+    dayDiv.appendChild(dateDiv);
+
+    academies.forEach((academy, idx) => {
+      const isChecked = data[date]?.[academy];
+
+      const bar = document.createElement("div");
+      bar.className = "bar" + (isChecked ? " checked" : "");
+      bar.style.background = colors[idx % colors.length];
+
+      bar.onclick = () => toggleAttendance(date, academy);
+
+      dayDiv.appendChild(bar);
+    });
+
+    calendar.appendChild(dayDiv);
+  }
+}
+
+render();
+</script>
+
+</body>
+</html>
