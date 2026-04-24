@@ -3,112 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>출석 관리 프로그램</title>
-
+<title>학원 출석 관리</title>
 <style>
-body { font-family: Arial; background:#f5f6fa; margin:0; padding:20px;}
-.container { display:flex; gap:20px; }
-.card { background:white; padding:15px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
-.left { width:30%; }
-.right { width:70%; }
-button { padding:8px 12px; border:none; border-radius:5px; cursor:pointer; }
-.add { background:#2ecc71; color:white; }
-.delete { background:#e74c3c; color:white; }
-.present { color:green; }
-.absent { color:red; }
-table { width:100%; border-collapse:collapse; }
-td, th { padding:8px; border-bottom:1px solid #ddd; text-align:center; }
-input { padding:8px; width:70%; }
+  body { font-family: Arial; padding: 20px; }
+  .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+  .day { border: 1px solid #ccc; padding: 10px; min-height: 80px; }
+  .academy { display: block; }
 </style>
 </head>
-
 <body>
 
-<h2>📅 출석 관리 프로그램</h2>
-
-<div class="container">
-
-<!-- 왼쪽 -->
-<div class="card left">
-<h3>학생 관리</h3>
-<input id="nameInput" placeholder="이름 입력">
-<button class="add" onclick="addStudent()">추가</button>
-
-<ul id="studentList"></ul>
-</div>
-
-<!-- 오른쪽 -->
-<div class="card right">
-<h3>출석 현황</h3>
-
-<table>
-<thead>
-<tr>
-<th>이름</th>
-<th>상태</th>
-<th>출석</th>
-<th>결석</th>
-</tr>
-</thead>
-<tbody id="tableBody"></tbody>
-</table>
-
-</div>
-</div>
+<h2>출석 달력</h2>
+<div id="calendar" class="calendar"></div>
 
 <script>
-let students = JSON.parse(localStorage.getItem("students")) || [];
+const STORAGE_KEY = "academyData";
 
-function save() {
-  localStorage.setItem("students", JSON.stringify(students));
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function toggleAttendance(date, academy) {
+  if (!data[date]) data[date] = {};
+  data[date][academy] = !data[date][academy];
+  saveData();
+  render();
 }
 
 function render() {
-  const list = document.getElementById("studentList");
-  const table = document.getElementById("tableBody");
+  const calendar = document.getElementById("calendar");
+  calendar.innerHTML = "";
 
-  list.innerHTML = "";
-  table.innerHTML = "";
+  for (let i = 1; i <= 30; i++) {
+    const date = `2026-04-${String(i).padStart(2, '0')}`;
 
-  students.forEach((s, i) => {
-    // 왼쪽 리스트
-    const li = document.createElement("li");
-    li.innerHTML = s.name + 
-      ` <button onclick="removeStudent(${i})">삭제</button>`;
-    list.appendChild(li);
+    const dayDiv = document.createElement("div");
+    dayDiv.className = "day";
+    dayDiv.innerHTML = `<strong>${i}</strong><br>`;
 
-    // 테이블
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${s.name}</td>
-      <td class="${s.status === '출석' ? 'present' : 'absent'}">${s.status || '-'}</td>
-      <td><button onclick="mark(${i}, '출석')">출석</button></td>
-      <td><button onclick="mark(${i}, '결석')">결석</button></td>
-    `;
-    table.appendChild(tr);
-  });
-}
+    ["수학", "영어", "과학"].forEach(academy => {
+      const checked = data[date]?.[academy] || false;
 
-function addStudent() {
-  const input = document.getElementById("nameInput");
-  if (!input.value) return;
+      const label = document.createElement("label");
+      label.className = "academy";
 
-  students.push({ name: input.value, status: "" });
-  input.value = "";
-  save();
-  render();
-}
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = checked;
+      checkbox.onchange = () => toggleAttendance(date, academy);
 
-function removeStudent(i) {
-  students.splice(i, 1);
-  save();
-  render();
-}
+      label.appendChild(checkbox);
+      label.append(` ${academy}`);
 
-function mark(i, status) {
-  students[i].status = status;
-  save();
-  render();
+      dayDiv.appendChild(label);
+    });
+
+    calendar.appendChild(dayDiv);
+  }
 }
 
 render();
